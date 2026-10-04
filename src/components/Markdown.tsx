@@ -53,7 +53,10 @@ export function Markdown({ content, toc = false }: { content: string; toc?: bool
 
   return (
     <div className="flex gap-8">
-      <div ref={ref} className="prose max-w-none min-w-0 flex-1">
+      <div
+        ref={ref}
+        className="prose max-w-none min-w-0 flex-1 prose-headings:scroll-mt-20 prose-a:text-brand-700 prose-pre:bg-gray-50 prose-pre:text-gray-800 prose-code:before:content-none prose-code:after:content-none prose-img:rounded-md"
+      >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeSlug, [rehypeHighlight, { plainText: ["mermaid"] }]]}
@@ -73,13 +76,13 @@ export function Markdown({ content, toc = false }: { content: string; toc?: bool
         </ReactMarkdown>
       </div>
       {toc && headings.length > 0 && (
-        <nav className="hidden w-56 shrink-0 text-sm lg:block">
-          <div className="sticky top-4">
-            <div className="mb-2 font-semibold text-gray-500">目次</div>
+        <nav className="hidden w-56 shrink-0 text-sm xl:block">
+          <div className="sticky top-20 max-h-[calc(100vh-7rem)] overflow-y-auto border-l border-gray-200 pl-4">
+            <div className="mb-2 text-xs font-semibold tracking-wide text-gray-400">目次</div>
             <ul className="space-y-1">
               {headings.map((h) => (
                 <li key={h.id} style={{ paddingLeft: (h.level - 1) * 12 }}>
-                  <a href={`#${h.id}`} className="text-gray-600 hover:text-blue-600">
+                  <a href={`#${h.id}`} className="text-gray-600 hover:text-brand-700">
                     {h.text}
                   </a>
                 </li>

@@ -7,12 +7,17 @@ import { Markdown } from "./Markdown";
 type Props = {
   mode: "create" | "edit";
   initial: { id: string; title: string; tags: string[]; content: string };
+  /** 新規作成時の保存先(フォルダの作成・名称変更はフォルダ管理でのみ行う) */
+  folders?: string[];
 };
 
-export function Editor({ mode, initial }: Props) {
+export function Editor({ mode, initial, folders = [] }: Props) {
   const router = useRouter();
-  const [id, setId] = useState(initial.id);
+  const [folder, setFolder] = useState("");
   const [title, setTitle] = useState(initial.title);
+  // 新規作成時のファイル名はタイトルから決める(ファイル名の変更はフォルダ管理側で行う)
+  const name = title.replace(/[/\\:*?"<>|#%]/g, " ").replace(/\s+/g, " ").trim().replace(/\.md$/, "");
+  const id = mode === "edit" ? initial.id : folder ? `${folder}/${name}` : name;
   const [tags, setTags] = useState(initial.tags.join(", "));
   const [content, setContent] = useState(initial.content);
   const [error, setError] = useState("");
@@ -74,41 +79,69 @@ export function Editor({ mode, initial }: Props) {
     router.refresh();
   }
 
-  const input = "rounded border border-gray-300 px-2 py-1 text-sm";
+  const input =
+    "rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500";
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          className={`${input} w-64`}
-          placeholder="パス (例: requirements/login)"
-          value={id}
-          disabled={mode === "edit"}
-          onChange={(e) => setId(e.target.value.replace(/^\/+|\.md$/g, ""))}
-        />
-        <input className={`${input} w-64`} placeholder="タイトル" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input className={`${input} w-56`} placeholder="タグ (カンマ区切り)" value={tags} onChange={(e) => setTags(e.target.value)} />
+    <div className="flex h-[calc(100vh-3.5rem-3rem)] flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+        {mode === "create" && (
+          <label className="space-y-1">
+            <span className="block text-xs font-semibold text-gray-500">保存先フォルダ</span>
+            <select className={`${input} w-56`} value={folder} onChange={(e) => setFolder(e.target.value)}>
+              <option value="">📁 ルート</option>
+              {folders.map((f) => (
+                <option key={f} value={f}>
+                  📁 {f}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="min-w-48 flex-1 space-y-1">
+          <span className="block text-xs font-semibold text-gray-500">タイトル</span>
+          <input
+            className={`${input} w-full`}
+            placeholder="ドキュメントのタイトル"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        {mode === "edit" && (
+          <label className="space-y-1">
+            <span className="block text-xs font-semibold text-gray-500">タグ</span>
+            <input className={`${input} w-56`} placeholder="カンマ区切り" value={tags} onChange={(e) => setTags(e.target.value)} />
+          </label>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
         <button
           onClick={save}
-          disabled={saving || !id || !title}
-          className="rounded bg-blue-600 px-4 py-1 text-sm text-white disabled:opacity-40"
+          disabled={saving || !title.trim()}
+          className="rounded-md bg-brand-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-40"
         >
-          保存
+          {saving ? "保存中…" : "保存"}
         </button>
-        {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-        <textarea
-          ref={area}
-          className="h-full resize-none rounded border border-gray-300 p-3 font-mono text-sm"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onPaste={onPaste}
-          onDrop={onDrop}
-          spellCheck={false}
-        />
-        <div className="overflow-auto rounded border border-gray-200 p-4">
-          <Markdown content={content} />
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500">
+            Markdown(画像は貼り付け / ドロップで追加)
+          </div>
+          <textarea
+            ref={area}
+            className="min-h-0 flex-1 resize-none p-4 font-mono text-sm leading-relaxed focus:outline-none"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onPaste={onPaste}
+            onDrop={onDrop}
+            spellCheck={false}
+          />
+        </div>
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500">プレビュー</div>
+          <div className="min-h-0 flex-1 overflow-auto p-6">
+            <Markdown content={content} />
+          </div>
         </div>
       </div>
     </div>

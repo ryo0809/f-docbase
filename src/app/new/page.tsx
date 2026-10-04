@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listTemplates } from "@/lib/docs";
+import { listFolders, listTemplates } from "@/lib/docs";
 import { Editor } from "@/components/Editor";
 
 export const dynamic = "force-dynamic";
@@ -11,16 +11,18 @@ export default async function NewPage({ searchParams }: { searchParams: Promise<
 
   if (!selected) {
     return (
-      <div>
-        <h1 className="mb-4 text-xl font-bold">テンプレートを選択</h1>
-        <ul className="grid max-w-xl gap-2">
+      <div className="mx-auto max-w-3xl">
+        <h1 className="mb-1 text-xl font-bold">テンプレートを選択</h1>
+        <p className="mb-4 text-sm text-gray-500">雛形を選んで新しいドキュメントを書き始めます。</p>
+        <ul className="grid gap-3 sm:grid-cols-2">
           {templates.map((t) => (
             <li key={t.id}>
               <Link
                 href={`/new?template=${encodeURIComponent(t.id)}`}
-                className="block rounded border border-gray-200 px-4 py-3 hover:border-blue-500"
+                className="block h-full rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-brand-400 hover:shadow"
               >
-                {t.title}
+                <div className="mb-1 text-2xl">📝</div>
+                <div className="font-semibold">{t.title}</div>
               </Link>
             </li>
           ))}
@@ -33,6 +35,7 @@ export default async function NewPage({ searchParams }: { searchParams: Promise<
     <Editor
       key={selected.id}
       mode="create"
+      folders={(await listFolders()).map((f) => f.path)}
       initial={{ id: "", title: selected.id === "blank" ? "" : selected.title, tags: [], content: selected.content }}
     />
   );
