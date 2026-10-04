@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* highlight.js minimal theme */
+.hljs-comment, .hljs-quote { color: #6b7280; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #c026d3; }
+.hljs-string, .hljs-attr, .hljs-regexp { color: #059669; }
+.hljs-number, .hljs-built_in, .hljs-type { color: #d97706; }
+.hljs-title, .hljs-section, .hljs-name { color: #2563eb; }
+.prose pre { background: #f6f8fa; color: #24292f; }
+.prose pre code { color: inherit; }
+.prose code::before, .prose code::after { content: none; }
