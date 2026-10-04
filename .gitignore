@@ -1,8 +1,13 @@
+# 依存関係
 node_modules/
+
+# ビルド成果物・キャッシュ
 .next/
 next-env.d.ts
 *.tsbuildinfo
+
+# 環境変数(トークンなどの秘密情報)
 .env*.local
 
-# UIスクリーンショット(PR添付用)
+# PR添付用のUIスクリーンショット
 .github/screenshots/
