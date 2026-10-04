@@ -1,12 +1,41 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* highlight.js minimal theme */
-.hljs-comment, .hljs-quote { color: #6b7280; font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #c026d3; }
-.hljs-string, .hljs-attr, .hljs-regexp { color: #059669; }
-.hljs-number, .hljs-built_in, .hljs-type { color: #d97706; }
-.hljs-title, .hljs-section, .hljs-name { color: #2563eb; }
-.prose pre { background: #f6f8fa; color: #24292f; }
-.prose pre code { color: inherit; }
-.prose code::before, .prose code::after { content: none; }
+/* ブランドカラー: 青紫(#5865F2 を中心に) */
+@theme {
+  --color-brand-50: #eef0ff;
+  --color-brand-100: #e0e3ff;
+  --color-brand-200: #c7cbff;
+  --color-brand-400: #7983f5;
+  --color-brand-500: #6571f3;
+  --color-brand-600: #5865f2;
+  --color-brand-700: #4752c4;
+}
+
+/* highlight.js のクラスはライブラリが生成するため、Tailwind の @apply で配色する */
+@layer components {
+  .hljs-comment,
+  .hljs-quote {
+    @apply text-gray-500 italic;
+  }
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal {
+    @apply text-fuchsia-600;
+  }
+  .hljs-string,
+  .hljs-attr,
+  .hljs-regexp {
+    @apply text-emerald-600;
+  }
+  .hljs-number,
+  .hljs-built_in,
+  .hljs-type {
+    @apply text-amber-600;
+  }
+  .hljs-title,
+  .hljs-section,
+  .hljs-name {
+    @apply text-blue-600;
+  }
+}

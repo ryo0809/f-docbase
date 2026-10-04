@@ -134,3 +134,88 @@ export async function listTemplates(): Promise<Template[]> {
     }),
   );
 }
+
+export type FolderInfo = { path: string; docCount: number };
+
+/** フォルダパスを正規化し docs/ 配下の絶対パスに解決する。不正な場合は例外。 */
+export function normalizeFolder(rel: string): { rel: string; full: string } {
+  const clean = rel.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const segs = clean.split("/");
+  if (!clean || segs.some((s) => !s || s === "." || s === ".." || s.includes("\0"))) throw new Error("invalid folder");
+  if (segs[0] === "assets") throw new Error("assets は予約済みのフォルダ名です");
+  return { rel: clean, full: resolveInside(DOCS_DIR, clean) };
+}
+
+async function walkDirs(dir: string, out: string[] = []): Promise<string[]> {
+  let entries: import("node:fs").Dirent[];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    if (!e.isDirectory() || (e.name === "assets" && dir === DOCS_DIR)) continue;
+    const full = path.join(dir, e.name);
+    out.push(path.relative(DOCS_DIR, full).replace(/\\/g, "/"));
+    await walkDirs(full, out);
+  }
+  return out;
+}
+
+/** 空フォルダも含めた全フォルダ(配下を含むドキュメント数つき)。 */
+export async function listFolders(): Promise<FolderInfo[]> {
+  const [dirs, docs] = await Promise.all([walkDirs(DOCS_DIR), listDocs()]);
+  return dirs
+    .sort((a, b) => a.localeCompare(b))
+    .map((p) => ({ path: p, docCount: docs.filter((d) => d.id.startsWith(p + "/")).length }));
+}
+
+export async function createFolder(rel: string): Promise<void> {
+  const { full } = normalizeFolder(rel);
+  try {
+    await fs.access(full);
+    throw new Error("already exists");
+  } catch (e) {
+    if ((e as Error).message === "already exists") throw new Error("同名のフォルダが既に存在します");
+  }
+  await fs.mkdir(full, { recursive: true });
+}
+
+/** フォルダ名の変更 / 移動。配下のドキュメントはまとめて新しいパスに移る。 */
+export async function renameFolder(from: string, to: string): Promise<void> {
+  const src = normalizeFolder(from);
+  const dst = normalizeFolder(to);
+  if (src.rel === dst.rel) return;
+  if (dst.rel.startsWith(src.rel + "/")) throw new Error("自分自身の配下には移動できません");
+  const stat = await fs.stat(src.full).catch(() => null);
+  if (!stat?.isDirectory()) throw new Error("フォルダが見つかりません");
+  if (await fs.stat(dst.full).catch(() => null)) throw new Error("移動先に同名のフォルダ / ファイルが既に存在します");
+  await fs.mkdir(path.dirname(dst.full), { recursive: true });
+  await fs.rename(src.full, dst.full);
+}
+
+/** 空のフォルダのみ削除できる。 */
+export async function deleteFolder(rel: string): Promise<void> {
+  const { full } = normalizeFolder(rel);
+  if ((await fs.readdir(full)).length > 0) throw new Error("フォルダが空ではありません");
+  await fs.rmdir(full);
+}
+
+/** ドキュメントの名称変更 / 移動。to は移動先を含む新しい id、title を渡すとタイトルも更新する。 */
+export async function moveDoc(from: string, to: string, title?: string): Promise<void> {
+  const src = resolveDocPath(from);
+  const dst = resolveDocPath(to.replace(/\\/g, "/").replace(/^\/+|\.md$/g, ""));
+  if (to.split("/").some((s) => s === "..")) throw new Error("invalid id");
+  if (!(await fs.stat(src).catch(() => null))) throw new Error("ドキュメントが見つかりません");
+  if (src !== dst) {
+    if (await fs.stat(dst).catch(() => null)) throw new Error("移動先に同名のドキュメントが既に存在します");
+    await fs.mkdir(path.dirname(dst), { recursive: true });
+    await fs.rename(src, dst);
+  }
+  if (title !== undefined) {
+    const parsed = matter(await fs.readFile(dst, "utf8"));
+    if (parsed.data.title !== title) {
+      await fs.writeFile(dst, matter.stringify(parsed.content, { ...parsed.data, title, updated: new Date().toISOString() }), "utf8");
+    }
+  }
+}

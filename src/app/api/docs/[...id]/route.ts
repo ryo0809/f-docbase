@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteDoc, readDoc, writeDoc } from "@/lib/docs";
+import { deleteDoc, moveDoc, readDoc, writeDoc } from "@/lib/docs";
 
 type Ctx = { params: Promise<{ id: string[] }> };
 
@@ -20,6 +20,17 @@ export async function PUT(req: Request, ctx: Ctx) {
   const { title, tags, content } = await req.json();
   try {
     await writeDoc(await docId(ctx), { title, tags: tags ?? [], content: content ?? "" });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+  }
+  return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(req: Request, ctx: Ctx) {
+  const { to, title } = await req.json();
+  try {
+    const from = await docId(ctx);
+    await moveDoc(from, typeof to === "string" && to ? to : from, typeof title === "string" ? title : undefined);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
