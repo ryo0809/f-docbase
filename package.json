@@ -12,7 +12,13 @@
     "build": "npm run build -w @f-docbase/web",
     "deploy": "npm run build && npm run deploy -w @f-docbase/api",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "migrate": "npm run migrate -w @f-docbase/api",
+    "migrate:local": "npm run migrate:local -w @f-docbase/api",
+    "import-docs": "node apps/api/scripts/import-docs.mjs",
+    "import-docs:local": "node apps/api/scripts/import-docs.mjs --local",
+    "reset-password": "node apps/api/scripts/reset-password.mjs",
+    "reset-password:local": "node apps/api/scripts/reset-password.mjs --local"
   },
   "devDependencies": {
     "typescript": "^7.0.2"
