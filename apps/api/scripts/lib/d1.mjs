@@ -27,3 +27,41 @@ export function d1Execute(target, extra) {
 export function sqlString(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
+
+/**
+ * SELECT を実行して、結果の行を返す(読み取り用)。失敗したときは例外を投げる。
+ * 画面入力を待たない(認証が切れているときも、待たずに失敗する)。
+ */
+export function d1Query(target, sql, { timeoutMs = 90_000 } = {}) {
+  const res = spawnSync(
+    process.execPath,
+    [wranglerBin, "d1", "execute", DATABASE, target.flag, "--json", "--command", sql],
+    { cwd: apiDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: timeoutMs, maxBuffer: 512 * 1024 * 1024 },
+  );
+  if (res.error) throw new Error(`${target.label}の D1 に問い合わせできませんでした: ${res.error.message}`);
+  const out = res.stdout ?? "";
+  if (res.status !== 0) {
+    const tail = `${res.stderr ?? ""}${out}`.trim().split("\n").slice(-6).join("\n");
+    throw new Error(`${target.label}の D1 に問い合わせできませんでした\n${tail}`);
+  }
+  const start = out.indexOf("[");
+  try {
+    return JSON.parse(out.slice(start))[0]?.results ?? [];
+  } catch {
+    throw new Error(`${target.label}の D1 の応答を読めませんでした`);
+  }
+}
+
+/** SQL ファイルを実行する。失敗しても終了せず、結果を返す(呼び出し側で扱う)。 */
+export function d1RunFile(target, file, { timeoutMs = 120_000 } = {}) {
+  const res = spawnSync(
+    process.execPath,
+    [wranglerBin, "d1", "execute", DATABASE, target.flag, "--file", file],
+    { cwd: apiDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 },
+  );
+  const output = `${res.stderr ?? ""}${res.stdout ?? ""}`;
+  return { ok: !res.error && res.status === 0, output };
+}
+
+export const LOCAL = { local: true, flag: "--local", label: "ローカル" };
+export const REMOTE = { local: false, flag: "--remote", label: "本番(リモート)" };

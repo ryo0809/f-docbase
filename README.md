@@ -52,13 +52,13 @@ apps/
       interface/http/     Hono のルーティング、エラーの HTTP への変換
       container.ts        依存関係の組み立て(実装を選ぶのはここだけ)
     migrations/           D1 のテーブル定義
-    scripts/              取り込み・パスワード再設定
+    scripts/              同期・書き出し・取り込み・パスワード再設定
     test/                 テスト(メモリ上の実装で、use case と HTTP を動かす)
   web/                    画面(SPA)
 packages/
   shared/                 API と画面で共有するロール・権限・データの型
 templates/                ドキュメントのテンプレート(.md)。API のビルド時に Worker へ同梱される
-docs/                     ドキュメントの元データ(.md)。D1 への取り込み用(下記)
+docs/                     ドキュメントのスナップショット(.md)。正は本番の D1(「ドキュメントの管理」を参照)
 ```
 
 依存の向きは `interface → application → domain` で、`infrastructure` は `domain` の interface を実装する。
@@ -68,15 +68,17 @@ docs/                     ドキュメントの元データ(.md)。D1 への取�
 
 ```
 npm install
-npm run migrate:local      # ローカルの D1 にテーブルを作る(初回だけ)
 npm run seed:local         # 開発用アカウントをローカルの D1 に作る(任意)
-npm run import-docs:local  # docs/ をローカルの D1 に取り込む(任意)
-npm run dev                # API: http://127.0.0.1:8787 / 画面: http://localhost:5173
+npm run dev                # マイグレーション適用 → 本番のドキュメントを同期 → API と画面を起動
+                           #   API: http://127.0.0.1:8787 / 画面: http://localhost:5173
+npm run dev -- --no-sync   # 同期せずに起動する(オフラインのときなど)
 npm test                   # テスト
 npm run typecheck          # 型チェック
 ```
 
 画面(5173)は、`/api` を API(8787)に転送する。ローカルの D1 は `apps/api/.wrangler/` に保存される(Git 管理外)。
+
+`npm run dev` は、起動のたびに、ローカルの D1 のテーブルを最新にして、**本番のドキュメントをローカルに同期**する(下記)。API が起動してから画面を起動するので、起動直後の接続エラーは出ない。同じポート(5173、8787)で、すでに別の `npm run dev` が動いていると、エラーや、別のポートでの起動になるので、先に止めること。
 
 ### ローカル開発用のアカウント
 
@@ -131,13 +133,29 @@ npm run reset-password -- <ユーザー名>
 ```
 npm run deploy         # 画面をビルドして、Worker と静的ファイルを公開する
 npm run migrate        # 本番の D1 にテーブルを作る(新しい migration があるとき)
-npm run import-docs    # docs/ を本番の D1 に取り込む(任意)
 ```
 
 - D1 は、初回の `deploy` で自動作成される。作成後の `database_id` は `wrangler.jsonc` に書いてある(秘密ではない)。
 - 公開 URL は `https://f-docbase.<アカウントのサブドメイン>.workers.dev`。
 - 無料プランの上限: Workers は 1日10万リクエスト・1リクエスト CPU 10ms、D1 は 1日 読み取り500万行・書き込み10万行・容量5GB。
 - 画像は D1 に base64 で保存する(1枚 1MB まで)。
+
+### ドキュメントの管理
+
+**ドキュメントの正(source of truth)は、本番の D1。** 画面での作成・編集・移動・並び替えは、すべて D1 に反映される。`docs/` の Markdown は、D1 から書き出したスナップショット(Git で履歴を残し、バックアップや再現に使う)。
+
+| コマンド | 内容 |
+|---|---|
+| `npm run dev` | 起動時に、本番 → ローカルへ同期する(下の `sync-docs`) |
+| `npm run sync-docs` | 本番の D1 のドキュメント・フォルダ・画像・並び順を、ローカルの D1 に写す。本番には書き込まない。ユーザー情報は対象外 |
+| `npm run export-docs` | 本番の D1 を、`docs/` の Markdown に書き出す(スナップショットの更新)。`-- --local` でローカルの D1。D1 にないファイルは、既定では残して知らせる(`-- --prune` で削除) |
+| `npm run import-docs` | `docs/` を、本番の D1 に取り込む(初期投入や、スナップショットからの復元)。同じ id は、本文・タイトル・タグ・更新日時を上書きし、並び順は変えない。`import-docs:local` でローカル |
+
+- **同期は、本番 → ローカルの一方向。** ローカルで編集したドキュメントは、次の `npm run dev` で、本番の内容に置き換わる。ローカルでの編集を残したいときは、`npm run dev -- --no-sync` で起動する
+- 本番に接続できないとき(未ログイン、オフライン)は、警告を出して、ローカルの D1 のまま起動する
+- 並び順は、`docs/_order.json` に書き出される。取り込みのときは、D1 にまだない行の並び順だけに使う
+- `docs/` を更新する手順: `npm run export-docs` → 差分を確認 → コミット。本番にまだ取り込んでいないドキュメントが `docs/` にあるときは、先に `npm run import-docs` で本番に投入してから、`export-docs -- --prune` を使うこと(`--prune` は、本番にないファイルを消す)
+- 本番の D1 の読み取りは、同期のたびに、ドキュメント・フォルダ・画像の行数ぶんだけ発生する(無料枠の 1日 500万行に対して、わずか)
 
 ### 自動デプロイ(GitHub Actions)
 
