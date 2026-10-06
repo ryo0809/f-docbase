@@ -1,0 +1,41 @@
+name: CI
+
+# PR の時点で、クリーンな Linux 環境で、デプロイ前と同じ検証を行う。
+# 手元では動くのに CI では失敗する(Git 管理外のファイルへの依存など)ことを、マージ前に見つける。
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: テスト
+        run: npm test
+
+      - name: 画面をビルド
+        run: npm run build
+
+      # デプロイはしない。設定とバンドルが正しいことだけを確かめる(Cloudflare の認証は不要)
+      - name: デプロイの事前確認(dry-run)
+        run: npm run deploy -w @f-docbase/api -- --dry-run
