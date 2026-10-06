@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/auth";
 import { createFolder, deleteFolder, listFolders, renameFolder } from "@/lib/docs";
 
 export async function GET() {
+  const auth = await authorize("view");
+  if (auth instanceof NextResponse) return auth;
   return NextResponse.json(await listFolders());
 }
 
-async function run(fn: () => Promise<void>, status = 200) {
+async function run(permission: "edit" | "delete", fn: () => Promise<void>, status = 200) {
+  const auth = await authorize(permission);
+  if (auth instanceof NextResponse) return auth;
   try {
     await fn();
   } catch (e) {
@@ -16,15 +21,15 @@ async function run(fn: () => Promise<void>, status = 200) {
 
 export async function POST(req: Request) {
   const { path } = await req.json();
-  return run(() => createFolder(String(path ?? "")), 201);
+  return run("edit", () => createFolder(String(path ?? "")), 201);
 }
 
 export async function PATCH(req: Request) {
   const { from, to } = await req.json();
-  return run(() => renameFolder(String(from ?? ""), String(to ?? "")));
+  return run("edit", () => renameFolder(String(from ?? ""), String(to ?? "")));
 }
 
 export async function DELETE(req: Request) {
   const { path } = await req.json();
-  return run(() => deleteFolder(String(path ?? "")));
+  return run("delete", () => deleteFolder(String(path ?? "")));
 }

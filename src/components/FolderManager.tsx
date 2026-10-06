@@ -33,7 +33,7 @@ function buildRows(folders: Folder[], docs: Doc[]): Row[] {
   return rows;
 }
 
-export function FolderManager({ folders, docs }: { folders: Folder[]; docs: Doc[] }) {
+export function FolderManager({ folders, docs, canDelete }: { folders: Folder[]; docs: Doc[]; canDelete: boolean }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [newPath, setNewPath] = useState("");
@@ -154,14 +154,16 @@ export function FolderManager({ folders, docs }: { folders: Folder[]; docs: Doc[
                     >
                       移動
                     </button>
-                    <button
-                      onClick={() => setDeleting(f)}
-                      disabled={f.docCount > 0}
-                      title={f.docCount > 0 ? "ドキュメントがあるフォルダは削除できません" : ""}
-                      className="rounded-md bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-600"
-                    >
-                      削除
-                    </button>
+                    {canDelete && (
+                      <button
+                        onClick={() => setDeleting(f)}
+                        disabled={f.docCount > 0}
+                        title={f.docCount > 0 ? "ドキュメントがあるフォルダは削除できません" : ""}
+                        className="rounded-md bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-600"
+                      >
+                        削除
+                      </button>
+                    )}
                   </>
                 )}
               </li>

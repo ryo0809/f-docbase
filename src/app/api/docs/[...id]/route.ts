@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/auth";
 import { deleteDoc, moveDoc, readDoc, writeDoc } from "@/lib/docs";
 
 type Ctx = { params: Promise<{ id: string[] }> };
@@ -8,6 +9,8 @@ async function docId(ctx: Ctx) {
 }
 
 export async function GET(_req: Request, ctx: Ctx) {
+  const auth = await authorize("view");
+  if (auth instanceof NextResponse) return auth;
   try {
     const doc = await readDoc(await docId(ctx));
     return doc ? NextResponse.json(doc) : NextResponse.json({ error: "not found" }, { status: 404 });
@@ -17,6 +20,8 @@ export async function GET(_req: Request, ctx: Ctx) {
 }
 
 export async function PUT(req: Request, ctx: Ctx) {
+  const auth = await authorize("edit");
+  if (auth instanceof NextResponse) return auth;
   const { title, tags, content } = await req.json();
   try {
     await writeDoc(await docId(ctx), { title, tags: tags ?? [], content: content ?? "" });
@@ -27,6 +32,8 @@ export async function PUT(req: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
+  const auth = await authorize("edit");
+  if (auth instanceof NextResponse) return auth;
   const { to, title } = await req.json();
   try {
     const from = await docId(ctx);
@@ -38,6 +45,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_req: Request, ctx: Ctx) {
+  const auth = await authorize("delete");
+  if (auth instanceof NextResponse) return auth;
   try {
     await deleteDoc(await docId(ctx));
   } catch (e) {

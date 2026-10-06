@@ -11,3 +11,9 @@ next-env.d.ts
 
 # PR添付用のUIスクリーンショット
 .github/screenshots/
+
+# ユーザー情報(ハッシュ化済みパスワードを含む)
+data/
+
+# Playwright MCP の出力(スナップショット・ログ)
+.playwright-mcp/
