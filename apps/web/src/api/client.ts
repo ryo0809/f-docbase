@@ -73,6 +73,10 @@ export const api = {
   renameFolder: (from: string, to: string) => request<{ ok: true }>("PATCH", "/api/folders", { from, to }),
   deleteFolder: (path: string) => request<{ ok: true }>("DELETE", "/api/folders", { path }),
 
+  // 並び順(parent の直下の、フォルダ同士・ドキュメント同士を、渡した順に並べる。最上位は parent を空文字に)
+  reorder: (parent: string, order: { folders?: string[]; docs?: string[] }) =>
+    request<{ ok: true }>("PUT", "/api/order", { parent, ...order }),
+
   // テンプレート・画像
   listTemplates: () => request<TemplateInfo[]>("GET", "/api/templates"),
   upload: (file: File) => {

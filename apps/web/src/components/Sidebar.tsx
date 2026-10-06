@@ -1,33 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
+import { buildTree, type TreeFolder, type TreeNode } from "../lib/tree";
 
-type Item = { id: string; title: string; tags: string[] };
+type Item = { id: string; title: string; tags: string[]; order: number };
 
-type Node = { name: string; path: string; folders: Node[]; docs: Item[] };
+type Node = TreeNode<Item>;
 
 const href = (id: string) => `/docs/${id.split("/").map(encodeURIComponent).join("/")}`;
-
-function buildTree(docs: Item[], folders: string[]): Node {
-  const root: Node = { name: "", path: "", folders: [], docs: [] };
-  /** パスに対応するノードを(無ければ作りながら)辿る */
-  const ensure = (parts: string[]) => {
-    let cur = root;
-    for (const name of parts) {
-      const path = cur.path ? `${cur.path}/${name}` : name;
-      let next = cur.folders.find((f) => f.name === name);
-      if (!next) {
-        next = { name, path, folders: [], docs: [] };
-        cur.folders.push(next);
-      }
-      cur = next;
-    }
-    return cur;
-  };
-  // 空のフォルダも表示できるよう、ドキュメントとは別にフォルダ一覧からも作る
-  for (const f of folders) ensure(f.split("/"));
-  for (const d of docs) ensure(d.id.split("/").slice(0, -1)).docs.push(d);
-  return root;
-}
 
 function Tree({ node, activeId, depth = 0 }: { node: Node; activeId: string; depth?: number }) {
   return (
@@ -68,7 +47,7 @@ function DocLink({ item, active }: { item: Item; active: boolean }) {
   );
 }
 
-function SidebarInner({ docs, folders }: { docs: Item[]; folders: string[] }) {
+function SidebarInner({ docs, folders }: { docs: Item[]; folders: TreeFolder[] }) {
   const pathname = useLocation().pathname;
   const activeTag = useSearchParams()[0].get("tag");
   const [q, setQ] = useState("");
@@ -157,6 +136,6 @@ function SidebarInner({ docs, folders }: { docs: Item[]; folders: string[] }) {
   );
 }
 
-export function Sidebar({ docs, folders }: { docs: Item[]; folders: string[] }) {
+export function Sidebar({ docs, folders }: { docs: Item[]; folders: TreeFolder[] }) {
   return <SidebarInner docs={docs} folders={folders} />;
 }

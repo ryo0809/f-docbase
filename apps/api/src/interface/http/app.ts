@@ -7,6 +7,7 @@ import { assetRoutes } from "./routes/assets";
 import { authRoutes } from "./routes/auth";
 import { documentRoutes } from "./routes/documents";
 import { folderRoutes } from "./routes/folders";
+import { orderRoutes } from "./routes/order";
 import { templateRoutes } from "./routes/templates";
 import { userRoutes } from "./routes/users";
 import type { AppEnv, Env } from "./types";
@@ -36,6 +37,7 @@ export function createApp(resolve: (env: Env) => Container) {
   app.route("/", folderRoutes);
   app.route("/", userRoutes);
   app.route("/", assetRoutes);
+  app.route("/", orderRoutes);
   app.route("/", templateRoutes);
 
   app.onError((err, c) => {

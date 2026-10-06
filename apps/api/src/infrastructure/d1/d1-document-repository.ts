@@ -4,7 +4,7 @@ import type { DocumentRepository } from "../../domain/document/document-reposito
 import { ConflictError, NotFoundError } from "../../domain/shared/errors";
 import { isUniqueViolation } from "./d1-errors";
 
-type SummaryRow = { id: string; title: string; tags: string; updated_at: string };
+type SummaryRow = { id: string; title: string; tags: string; updated_at: string; sort_order: number };
 type Row = SummaryRow & { content: string };
 
 function parseTags(json: string): string[] {
@@ -17,20 +17,28 @@ function parseTags(json: string): string[] {
 }
 
 function toSummary(r: SummaryRow): DocumentSummary {
-  return { id: DocumentId.create(r.id), title: r.title, tags: parseTags(r.tags), updatedAt: new Date(r.updated_at) };
+  return {
+    id: DocumentId.create(r.id),
+    title: r.title,
+    tags: parseTags(r.tags),
+    updatedAt: new Date(r.updated_at),
+    sortOrder: r.sort_order,
+  };
 }
 
 export class D1DocumentRepository implements DocumentRepository {
   constructor(private readonly db: D1Database) {}
 
   async list(): Promise<DocumentSummary[]> {
-    const { results } = await this.db.prepare("SELECT id, title, tags, updated_at FROM documents").all<SummaryRow>();
+    const { results } = await this.db
+      .prepare("SELECT id, title, tags, updated_at, sort_order FROM documents")
+      .all<SummaryRow>();
     return results.map(toSummary).sort((a, b) => a.id.value.localeCompare(b.id.value));
   }
 
   async find(id: DocumentId): Promise<Document | null> {
     const row = await this.db
-      .prepare("SELECT id, title, tags, content, updated_at FROM documents WHERE id = ?")
+      .prepare("SELECT id, title, tags, content, updated_at, sort_order FROM documents WHERE id = ?")
       .bind(id.value)
       .first<Row>();
     return row ? Document.restore({ ...toSummary(row), content: row.content }) : null;
@@ -43,8 +51,8 @@ export class D1DocumentRepository implements DocumentRepository {
   async insert(doc: Document): Promise<void> {
     try {
       await this.db
-        .prepare("INSERT INTO documents (id, title, tags, content, updated_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(doc.id.value, doc.title, JSON.stringify(doc.tags), doc.content, doc.updatedAt.toISOString())
+        .prepare("INSERT INTO documents (id, title, tags, content, updated_at, sort_order) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(doc.id.value, doc.title, JSON.stringify(doc.tags), doc.content, doc.updatedAt.toISOString(), doc.sortOrder)
         .run();
     } catch (e) {
       if (isUniqueViolation(e)) throw new ConflictError("同名のドキュメントが既に存在します");
@@ -55,8 +63,18 @@ export class D1DocumentRepository implements DocumentRepository {
   async update(doc: Document, previousId: DocumentId = doc.id): Promise<void> {
     try {
       const res = await this.db
-        .prepare("UPDATE documents SET id = ?, title = ?, tags = ?, content = ?, updated_at = ? WHERE id = ?")
-        .bind(doc.id.value, doc.title, JSON.stringify(doc.tags), doc.content, doc.updatedAt.toISOString(), previousId.value)
+        .prepare(
+          "UPDATE documents SET id = ?, title = ?, tags = ?, content = ?, updated_at = ?, sort_order = ? WHERE id = ?",
+        )
+        .bind(
+          doc.id.value,
+          doc.title,
+          JSON.stringify(doc.tags),
+          doc.content,
+          doc.updatedAt.toISOString(),
+          doc.sortOrder,
+          previousId.value,
+        )
         .run();
       if (res.meta.changes === 0) throw new NotFoundError("ドキュメントが見つかりません");
     } catch (e) {
@@ -68,5 +86,13 @@ export class D1DocumentRepository implements DocumentRepository {
   async delete(id: DocumentId): Promise<boolean> {
     const res = await this.db.prepare("DELETE FROM documents WHERE id = ?").bind(id.value).run();
     return res.meta.changes > 0;
+  }
+
+  async setOrder(ids: DocumentId[]): Promise<void> {
+    if (ids.length === 0) return;
+    // 1回の batch(まとめて成功か失敗)で、順番を付け直す
+    await this.db.batch(
+      ids.map((id, i) => this.db.prepare("UPDATE documents SET sort_order = ? WHERE id = ?").bind(i + 1, id.value)),
+    );
   }
 }

@@ -13,6 +13,8 @@ export type DocumentProps = {
   tags: string[];
   content: string;
   updatedAt: Date;
+  /** 同じフォルダの中での並び順。1 以上が設定済み、0 は未設定 */
+  sortOrder: number;
 };
 
 export type DocumentInput = { title: string; tags: string[]; content: string };
@@ -49,6 +51,7 @@ export class Document {
       tags: normalizeTags(input.tags),
       content: checkContent(input.content),
       updatedAt: now,
+      sortOrder: 0,
     });
   }
 
@@ -72,8 +75,11 @@ export class Document {
   get updatedAt(): Date {
     return this.props.updatedAt;
   }
+  get sortOrder(): number {
+    return this.props.sortOrder;
+  }
 
-  /** タイトル・タグ・本文を更新する。更新日時は now になる。 */
+  /** タイトル・タグ・本文を更新する。更新日時は now になる。並び順は変えない。 */
   edit(input: DocumentInput, now: Date): Document {
     return new Document({
       id: this.props.id,
@@ -81,12 +87,17 @@ export class Document {
       tags: normalizeTags(input.tags),
       content: checkContent(input.content),
       updatedAt: now,
+      sortOrder: this.props.sortOrder,
     });
   }
 
-  /** 別のパスへ移す。更新日時は変えない。 */
+  /**
+   * 別のパスへ移す。更新日時は変えない。
+   * 別のフォルダへ移したときは、並び順を未設定に戻す(移動先の最後に並ぶ)。名前だけの変更では保つ。
+   */
   moveTo(id: DocumentId): Document {
-    return new Document({ ...this.props, id });
+    const sameFolder = id.folder === this.props.id.folder;
+    return new Document({ ...this.props, id, sortOrder: sameFolder ? this.props.sortOrder : 0 });
   }
 
   /** タイトルだけを変える。変わったときだけ更新日時を now にする。 */

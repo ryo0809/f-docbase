@@ -7,11 +7,18 @@ export type DocMeta = {
   title: string;
   tags: string[];
   updated: string; // ISO 8601
+  /** 同じフォルダの中での並び順(1 以上が設定済み、0 は未設定) */
+  order: number;
 };
 
 export type Doc = DocMeta & { content: string };
 
-export type FolderInfo = { path: string; docCount: number };
+export type FolderInfo = {
+  path: string;
+  docCount: number;
+  /** 同じフォルダの中での並び順(1 以上が設定済み、0 は未設定) */
+  order: number;
+};
 
 export type TemplateInfo = { id: string; title: string; content: string };
 
