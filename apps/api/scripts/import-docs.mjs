@@ -2,7 +2,9 @@
 //   node scripts/import-docs.mjs [--local] [--dir <docsのパス>]
 // 既定は本番(リモート)の D1。--local でローカルの D1(wrangler dev 用)。
 // 同じ id のドキュメントがあれば、本文・タイトル・タグ・更新日時を上書きする(並び順は変えない)。D1 にしかないドキュメントは消さない。
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+// docs/_order.json(export-docs が書き出す)があれば、D1 にまだないドキュメント・フォルダの並び順に使う。
+// ドキュメントの正は D1。この取り込みは、初期投入や、スナップショットからの復元に使う。
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +40,10 @@ function walk(dir, files = [], dirs = []) {
 }
 
 const posix = (p) => p.split(sep).join("/");
+
+// 並び順(export-docs が書き出す)。なければ、すべて未設定(0)
+const orderFile = join(root, "_order.json");
+const orders = existsSync(orderFile) ? JSON.parse(readFileSync(orderFile, "utf8")) : { folders: {}, docs: {} };
 const { files, dirs } = walk(root);
 const statements = [];
 
@@ -50,14 +56,17 @@ for (const file of files) {
     data.updated instanceof Date ? data.updated.toISOString() : typeof data.updated === "string" ? data.updated : statSync(file).mtime.toISOString();
   statements.push(
     // 行を作り直さず、本文などだけを更新する(管理画面で設定した並び順を残すため)
-    `INSERT INTO documents (id, title, tags, content, updated_at) VALUES (${sqlString(id)}, ${sqlString(title)}, ${sqlString(JSON.stringify(tags))}, ${sqlString(content)}, ${sqlString(updated)}) ` +
+    `INSERT INTO documents (id, title, tags, content, updated_at, sort_order) VALUES (${sqlString(id)}, ${sqlString(title)}, ${sqlString(JSON.stringify(tags))}, ${sqlString(content)}, ${sqlString(updated)}, ${Number(orders.docs?.[id]) || 0}) ` +
       `ON CONFLICT(id) DO UPDATE SET title = excluded.title, tags = excluded.tags, content = excluded.content, updated_at = excluded.updated_at;`,
   );
 }
 
 // 空のフォルダも含めて、フォルダを保存する(ドキュメントの親フォルダも残る)
-for (const d of dirs) {
-  statements.push(`INSERT OR IGNORE INTO folders (path) VALUES (${sqlString(posix(relative(root, d)))});`);
+const folderPaths = new Set(dirs.map((d) => posix(relative(root, d))));
+for (const p of Object.keys(orders.folders ?? {})) folderPaths.add(p); // 空のフォルダも、_order.json から復元する
+for (const p of folderPaths) {
+  // すでにあるフォルダの並び順は、変えない
+  statements.push(`INSERT INTO folders (path, sort_order) VALUES (${sqlString(p)}, ${Number(orders.folders?.[p]) || 0}) ON CONFLICT(path) DO NOTHING;`);
 }
 
 // 画像は、元のファイル名のまま取り込む(本文の /api/assets/<名前> がそのまま使える)
@@ -86,7 +95,7 @@ if (statements.length === 0) {
   process.exit(0);
 }
 
-console.log(`対象: ${target.label} の D1 / ドキュメント ${files.length} 件、フォルダ ${dirs.length} 件、画像 ${assetCount} 件`);
+console.log(`対象: ${target.label} の D1 / ドキュメント ${files.length} 件、フォルダ ${folderPaths.size} 件、画像 ${assetCount} 件`);
 const tmp = mkdtempSync(join(tmpdir(), "docbase-import-"));
 const sqlFile = join(tmp, "import.sql");
 try {
