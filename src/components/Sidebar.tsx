@@ -128,15 +128,7 @@ function SidebarInner({ docs, folders }: { docs: Item[]; folders: string[] }) {
               <span>🏠</span> すべてのドキュメント
               <span className="ml-auto text-xs text-gray-400">{docs.length}</span>
             </Link>
-            <div className="mt-4 mb-1 flex items-center justify-between px-2">
-              <h2 className="text-xs font-semibold tracking-wide text-gray-400">フォルダ</h2>
-              <Link
-                href="/folders"
-                className={`text-xs ${pathname === "/folders" ? "font-medium text-brand-700" : "text-gray-400 hover:text-brand-700"}`}
-              >
-                ⚙ 管理
-              </Link>
-            </div>
+            <h2 className="mt-4 mb-1 px-2 text-xs font-semibold tracking-wide text-gray-400">フォルダ</h2>
             <Tree node={tree} activeId={activeId} />
           </nav>
 

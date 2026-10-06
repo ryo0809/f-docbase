@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { listFolders, listTemplates } from "@/lib/docs";
+import { can } from "@/lib/roles";
 import { Editor } from "@/components/Editor";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewPage({ searchParams }: { searchParams: Promise<{ template?: string }> }) {
+  const user = await getCurrentUser();
+  if (!user || !can(user.role, "edit")) redirect("/");
   const { template } = await searchParams;
   const templates = await listTemplates();
   const selected = templates.find((t) => t.id === template);

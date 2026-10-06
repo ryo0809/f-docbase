@@ -1,11 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { authorize } from "@/lib/auth";
 import { ASSETS_DIR } from "@/lib/docs";
 
 const ALLOWED = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
 
 export async function POST(req: Request) {
+  const auth = await authorize("edit");
+  if (auth instanceof NextResponse) return auth;
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
