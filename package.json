@@ -18,7 +18,8 @@
     "import-docs": "node apps/api/scripts/import-docs.mjs",
     "import-docs:local": "node apps/api/scripts/import-docs.mjs --local",
     "reset-password": "node apps/api/scripts/reset-password.mjs",
-    "reset-password:local": "node apps/api/scripts/reset-password.mjs --local"
+    "reset-password:local": "node apps/api/scripts/reset-password.mjs --local",
+    "seed:local": "node apps/api/scripts/seed-local.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

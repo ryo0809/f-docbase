@@ -69,6 +69,7 @@ docs/                     ドキュメントの元データ(.md)。D1 への取�
 ```
 npm install
 npm run migrate:local      # ローカルの D1 にテーブルを作る(初回だけ)
+npm run seed:local         # 開発用アカウントをローカルの D1 に作る(任意)
 npm run import-docs:local  # docs/ をローカルの D1 に取り込む(任意)
 npm run dev                # API: http://127.0.0.1:8787 / 画面: http://localhost:5173
 npm test                   # テスト
@@ -76,6 +77,19 @@ npm run typecheck          # 型チェック
 ```
 
 画面(5173)は、`/api` を API(8787)に転送する。ローカルの D1 は `apps/api/.wrangler/` に保存される(Git 管理外)。
+
+### ローカル開発用のアカウント
+
+`npm run seed:local` で、ロール別の3人をローカルの D1 に作る(何度実行しても、すでにいるユーザーは変更しない)。パスワードは、3人とも `password-1`。
+
+| ユーザー名 | ロール |
+|---|---|
+| `dev-owner` | オーナー |
+| `dev-developer` | 開発メンバー |
+| `dev-viewer` | 一般メンバー |
+
+- **ローカル専用。** 本番の D1 には作れない(対象はローカルに固定で、引数も受け付けない)。公開されたパスワードなので、本番のユーザーには使わないこと。
+- 先に `npm run migrate:local` でテーブルを作っておく。
 
 ## 認証と権限
 
