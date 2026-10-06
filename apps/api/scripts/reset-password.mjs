@@ -14,7 +14,7 @@ const ITERATIONS = 40_000; // API の Pbkdf2PasswordHasher と同じ
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,32}$/;
 
 if (!username || !USERNAME_RE.test(username)) {
-  console.error("使い方: node scripts/reset-password.mjs <ユーザー名> [パスワード] [--local]");
+  console.error("使い方: npm run reset-password -- <ユーザー名> [パスワード]  (ローカルの D1 は reset-password:local)");
   process.exit(1);
 }
 

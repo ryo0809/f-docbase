@@ -68,11 +68,11 @@ docs/                     ドキュメントの元データ(.md)。D1 への取�
 
 ```
 npm install
-make migrate-local     # ローカルの D1 にテーブルを作る(初回だけ)
-make import-docs-local # docs/ をローカルの D1 に取り込む(任意)
-npm run dev            # API: http://127.0.0.1:8787 / 画面: http://localhost:5173
-npm test               # テスト
-npm run typecheck      # 型チェック
+npm run migrate:local      # ローカルの D1 にテーブルを作る(初回だけ)
+npm run import-docs:local  # docs/ をローカルの D1 に取り込む(任意)
+npm run dev                # API: http://127.0.0.1:8787 / 画面: http://localhost:5173
+npm test                   # テスト
+npm run typecheck          # 型チェック
 ```
 
 画面(5173)は、`/api` を API(8787)に転送する。ローカルの D1 は `apps/api/.wrangler/` に保存される(Git 管理外)。
@@ -105,19 +105,19 @@ npm run typecheck      # 型チェック
 - オーナー自身: 次のコマンドを実行する(本番の D1 を更新する。`wrangler login` 済みであること)。
 
 ```
-make reset-password USER_NAME=<ユーザー名>
+npm run reset-password -- <ユーザー名>
 ```
 
-  実行後にパスワードの入力を求められる(画面にもシェルの履歴にも残らない)。`make` が使えない環境では、`node apps/api/scripts/reset-password.mjs <ユーザー名>` でも同じ。ローカルの D1 には `make reset-password-local` を使う。
+  実行後にパスワードの入力を求められる(画面にもシェルの履歴にも残らない)。`--` は必須(これがないと、ユーザー名が npm に渡ってしまう)。ローカルの D1 には `npm run reset-password:local -- <ユーザー名>` を使う。
 
 ## デプロイ(Cloudflare)
 
 無料プランで動く。初回は `wrangler login` でログインしておく。
 
 ```
-make deploy            # 画面をビルドして、Worker と静的ファイルを公開する
-make migrate           # 本番の D1 にテーブルを作る(新しい migration があるとき)
-make import-docs       # docs/ を本番の D1 に取り込む(任意)
+npm run deploy         # 画面をビルドして、Worker と静的ファイルを公開する
+npm run migrate        # 本番の D1 にテーブルを作る(新しい migration があるとき)
+npm run import-docs    # docs/ を本番の D1 に取り込む(任意)
 ```
 
 - D1 は、初回の `deploy` で自動作成される。作成後の `database_id` は `wrangler.jsonc` に書いてある(秘密ではない)。
