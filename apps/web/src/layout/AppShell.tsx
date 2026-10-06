@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex">
         <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <Sidebar docs={docs} folders={folders.map((f) => f.path)} />
+            <Sidebar docs={docs} folders={folders} />
           </div>
           {canEdit && <AdminNav />}
         </aside>

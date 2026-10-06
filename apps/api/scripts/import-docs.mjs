@@ -1,7 +1,7 @@
 // リポジトリの docs/(Markdown と画像)を D1 に取り込む。
 //   node scripts/import-docs.mjs [--local] [--dir <docsのパス>]
 // 既定は本番(リモート)の D1。--local でローカルの D1(wrangler dev 用)。
-// 同じ id のドキュメントがあれば上書きする。D1 にしかないドキュメントは消さない。
+// 同じ id のドキュメントがあれば、本文・タイトル・タグ・更新日時を上書きする(並び順は変えない)。D1 にしかないドキュメントは消さない。
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
@@ -49,7 +49,9 @@ for (const file of files) {
   const updated =
     data.updated instanceof Date ? data.updated.toISOString() : typeof data.updated === "string" ? data.updated : statSync(file).mtime.toISOString();
   statements.push(
-    `INSERT OR REPLACE INTO documents (id, title, tags, content, updated_at) VALUES (${sqlString(id)}, ${sqlString(title)}, ${sqlString(JSON.stringify(tags))}, ${sqlString(content)}, ${sqlString(updated)});`,
+    // 行を作り直さず、本文などだけを更新する(管理画面で設定した並び順を残すため)
+    `INSERT INTO documents (id, title, tags, content, updated_at) VALUES (${sqlString(id)}, ${sqlString(title)}, ${sqlString(JSON.stringify(tags))}, ${sqlString(content)}, ${sqlString(updated)}) ` +
+      `ON CONFLICT(id) DO UPDATE SET title = excluded.title, tags = excluded.tags, content = excluded.content, updated_at = excluded.updated_at;`,
   );
 }
 

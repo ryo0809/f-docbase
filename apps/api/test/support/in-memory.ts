@@ -51,7 +51,8 @@ export class InMemoryUsers implements UserRepository {
 /** ドキュメントとフォルダは、フォルダの名称変更で一緒に動くため、同じ入れ物で持つ。 */
 export class InMemoryContent implements DocumentRepository, FolderRepository {
   readonly docs = new Map<string, Document>();
-  readonly folders = new Set<string>();
+  /** パス → 並び順 */
+  readonly folders = new Map<string, number>();
 
   async list(): Promise<DocumentSummary[]> {
     return [...this.docs.values()].map((d) => d.toSummary()).sort((a, b) => a.id.value.localeCompare(b.id.value));
@@ -75,25 +76,40 @@ export class InMemoryContent implements DocumentRepository, FolderRepository {
     return this.docs.delete(id.value);
   }
 
+  async setOrder(ids: DocumentId[] | FolderPath[]) {
+    // DocumentRepository と FolderRepository の両方に setOrder があるため、型で振り分ける
+    ids.forEach((x, i) => {
+      if ("folder" in x) {
+        const doc = this.docs.get(x.value);
+        if (doc) this.docs.set(x.value, Document.restore({ ...doc.toSummary(), content: doc.content, sortOrder: i + 1 }));
+      } else {
+        if (!this.folders.has(x.value)) this.folders.set(x.value, 0);
+        this.folders.set(x.value, i + 1);
+      }
+    });
+  }
+
   async listExplicit() {
-    return [...this.folders];
+    return [...this.folders].map(([path, order]) => ({ path, order }));
   }
   async add(path: FolderPath) {
-    this.folders.add(path.value);
+    if (!this.folders.has(path.value)) this.folders.set(path.value, 0);
   }
   async remove(path: FolderPath) {
     this.folders.delete(path.value);
   }
   async rename(from: FolderPath, to: FolderPath) {
+    const parentOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
     const move = (p: string) => (p === from.value || p.startsWith(from.value + "/") ? to.value + p.slice(from.value.length) : p);
-    const folders = [...this.folders].map(move);
+    const folders = [...this.folders].map(([p, order]) => [move(p), order] as const);
     this.folders.clear();
-    folders.forEach((f) => this.folders.add(f));
+    folders.forEach(([p, order]) => this.folders.set(p, p === to.value && parentOf(from.value) !== parentOf(to.value) ? 0 : order));
     for (const [id, doc] of [...this.docs]) {
       const next = move(id);
       if (next !== id) {
         this.docs.delete(id);
-        this.docs.set(next, doc.moveTo(DocumentId.create(next)));
+        // フォルダごとの移動では、配下のドキュメントの並び順を保つ
+        this.docs.set(next, Document.restore({ ...doc.toSummary(), id: DocumentId.create(next), content: doc.content }));
       }
     }
   }

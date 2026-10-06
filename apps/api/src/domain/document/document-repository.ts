@@ -12,4 +12,6 @@ export interface DocumentRepository {
   update(doc: Document, previousId?: DocumentId): Promise<void>;
   /** 削除できたら true。存在しなければ false。 */
   delete(id: DocumentId): Promise<boolean>;
+  /** 渡した順に、並び順を 1, 2, 3 … と付ける。 */
+  setOrder(ids: DocumentId[]): Promise<void>;
 }

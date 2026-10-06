@@ -3,7 +3,7 @@ import type { Document, DocumentSummary } from "../../domain/document/document";
 import type { User } from "../../domain/user/user";
 
 export function toDocMeta(d: DocumentSummary): DocMeta {
-  return { id: d.id.value, title: d.title, tags: d.tags, updated: d.updatedAt.toISOString() };
+  return { id: d.id.value, title: d.title, tags: d.tags, updated: d.updatedAt.toISOString(), order: d.sortOrder };
 }
 
 export function toDoc(d: Document): Doc {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { compareByOrder } from "@f-docbase/shared";
 import { Asset, MAX_ASSET_BYTES } from "../src/domain/asset/asset";
 import { Document } from "../src/domain/document/document";
 import { DocumentId } from "../src/domain/document/document-id";
@@ -62,12 +63,43 @@ describe("FolderPath / deriveFolders", () => {
   });
 
   it("空フォルダと、ドキュメントの親フォルダ(祖先を含む)をまとめる", () => {
-    expect(deriveFolders(["empty/deep"], ["a/b/doc", "a/other", "root"])).toEqual([
-      { path: "a", docCount: 2 },
-      { path: "a/b", docCount: 1 },
-      { path: "empty", docCount: 0 },
-      { path: "empty/deep", docCount: 0 },
+    expect(deriveFolders([{ path: "empty/deep", order: 0 }], ["a/b/doc", "a/other", "root"])).toEqual([
+      { path: "a", docCount: 2, order: 0 },
+      { path: "a/b", docCount: 1, order: 0 },
+      { path: "empty", docCount: 0, order: 0 },
+      { path: "empty/deep", docCount: 0, order: 0 },
     ]);
+  });
+
+  it("保存されている並び順を、フォルダに付ける(祖先として導かれたものにも)", () => {
+    const tree = deriveFolders(
+      [
+        { path: "a", order: 2 },
+        { path: "a/b", order: 1 },
+      ],
+      ["a/b/doc"],
+    );
+    expect(tree).toEqual([
+      { path: "a", docCount: 1, order: 2 },
+      { path: "a/b", docCount: 1, order: 1 },
+    ]);
+  });
+});
+
+describe("並び順", () => {
+  const items = (...xs: [string, number][]) => xs.map(([name, order]) => ({ name, order }));
+
+  it("設定済みは昇順で先に、未設定(0)は、その後ろに名前順で並べる", () => {
+    const sorted = items(["b", 0], ["c", 2], ["a", 0], ["d", 1]).sort(compareByOrder);
+    expect(sorted.map((x) => x.name)).toEqual(["d", "c", "a", "b"]);
+  });
+
+  it("別のフォルダへ移すと並び順が未設定に戻り、同じフォルダでの名称変更では保たれる", () => {
+    const base = Document.create(DocumentId.create("a/doc"), { title: "t", tags: [], content: "" }, now);
+    const ordered = Document.restore({ ...base.toSummary(), content: "", sortOrder: 3 });
+    expect(ordered.moveTo(DocumentId.create("a/renamed")).sortOrder).toBe(3);
+    expect(ordered.moveTo(DocumentId.create("b/doc")).sortOrder).toBe(0);
+    expect(ordered.edit({ title: "u", tags: [], content: "x" }, now).sortOrder).toBe(3);
   });
 });
 

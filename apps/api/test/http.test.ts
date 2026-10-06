@@ -164,7 +164,7 @@ describe("HTTP API", () => {
       await dev.put("/api/docs/%E8%A6%81%E4%BB%B6%E5%AE%9A%E7%BE%A9%E6%9B%B8/EC", { title: "EC2", tags: [], content: "new" });
       const list = (await dev.get("/api/docs")).json;
       expect(list).toEqual([
-        { id: "要件定義書/EC", title: "EC2", tags: [], updated: "2026-10-06T00:01:00.000Z" },
+        { id: "要件定義書/EC", title: "EC2", tags: [], updated: "2026-10-06T00:01:00.000Z", order: 0 },
       ]);
     });
 
@@ -196,9 +196,9 @@ describe("HTTP API", () => {
       await owner.post("/api/folders", { path: "empty" });
       await owner.post("/api/docs", { id: "a/b/doc", title: "d" });
       expect((await owner.get("/api/folders")).json).toEqual([
-        { path: "a", docCount: 1 },
-        { path: "a/b", docCount: 1 },
-        { path: "empty", docCount: 0 },
+        { path: "a", docCount: 1, order: 0 },
+        { path: "a/b", docCount: 1, order: 0 },
+        { path: "empty", docCount: 0, order: 0 },
       ]);
     });
 
@@ -215,8 +215,8 @@ describe("HTTP API", () => {
       expect((await owner.patch("/api/folders", { from: "old", to: "new" })).status).toBe(200);
       expect((await owner.get("/api/docs")).json.map((d: { id: string }) => d.id)).toEqual(["new/doc"]);
       expect((await owner.get("/api/folders")).json).toEqual([
-        { path: "new", docCount: 1 },
-        { path: "new/sub", docCount: 0 },
+        { path: "new", docCount: 1, order: 0 },
+        { path: "new/sub", docCount: 0, order: 0 },
       ]);
     });
 
@@ -236,6 +236,92 @@ describe("HTTP API", () => {
       expect((await owner.del("/api/folders", { path: "parent/child" })).status).toBe(200);
       expect((await owner.del("/api/folders", { path: "parent" })).status).toBe(200);
       expect((await owner.del("/api/folders", { path: "none" })).status).toBe(404);
+    });
+  });
+
+  describe("移動と並び順", () => {
+    const ids = async () => (await owner.get("/api/docs")).json.map((d: { id: string }) => d.id);
+    const orderOf = async (id: string) => (await owner.get("/api/docs")).json.find((d: { id: string }) => d.id === id)?.order;
+    const folderOrder = async (path: string) => (await owner.get("/api/folders")).json.find((f: { path: string }) => f.path === path)?.order;
+
+    it("一覧に並び順が含まれ、初期値は未設定(0)", async () => {
+      await owner.post("/api/docs", { id: "a/x", title: "x" });
+      await owner.post("/api/folders", { path: "a/sub" });
+      expect(await orderOf("a/x")).toBe(0);
+      expect(await folderOrder("a")).toBe(0);
+    });
+
+    it("同じフォルダの、フォルダとドキュメントの並び順を決められる", async () => {
+      for (const id of ["d/a", "d/b", "d/c"]) await owner.post("/api/docs", { id, title: id });
+      for (const path of ["d/f1", "d/f2"]) await owner.post("/api/folders", { path });
+      const res = await owner.raw("PUT", "/api/order", { parent: "d", docs: ["d/c", "d/a", "d/b"], folders: ["d/f2", "d/f1"] });
+      expect(res.status).toBe(200);
+      expect([await orderOf("d/c"), await orderOf("d/a"), await orderOf("d/b")]).toEqual([1, 2, 3]);
+      expect([await folderOrder("d/f2"), await folderOrder("d/f1")]).toEqual([1, 2]);
+    });
+
+    it("まだ保存されていない(ドキュメントの親として導かれた)フォルダも、並び替えられる", async () => {
+      await owner.post("/api/docs", { id: "p/doc", title: "d" });
+      await owner.post("/api/docs", { id: "q/doc", title: "d" });
+      await owner.post("/api/folders", { path: "p" }); // 明示的に保存する
+      expect((await owner.raw("PUT", "/api/order", { parent: "", folders: ["q", "p"] })).status).toBe(200);
+      expect([await folderOrder("q"), await folderOrder("p")]).toEqual([1, 2]);
+    });
+
+    it("最上位(parent が空)の並び替えができる", async () => {
+      await owner.post("/api/docs", { id: "root-a", title: "a" });
+      await owner.post("/api/docs", { id: "root-b", title: "b" });
+      expect((await owner.raw("PUT", "/api/order", { parent: "", docs: ["root-b", "root-a"] })).status).toBe(200);
+      expect([await orderOf("root-b"), await orderOf("root-a")]).toEqual([1, 2]);
+    });
+
+    it("別のフォルダの項目・存在しない項目・重複は、並び替えられない", async () => {
+      await owner.post("/api/docs", { id: "m/a", title: "a" });
+      await owner.post("/api/docs", { id: "n/b", title: "b" });
+      expect((await owner.raw("PUT", "/api/order", { parent: "m", docs: ["m/a", "n/b"] })).status).toBe(400);
+      expect((await owner.raw("PUT", "/api/order", { parent: "m", docs: ["m/none"] })).status).toBe(404);
+      expect((await owner.raw("PUT", "/api/order", { parent: "m", docs: ["m/a", "m/a"] })).status).toBe(400);
+      expect((await owner.raw("PUT", "/api/order", { parent: "m", folders: ["m/nofolder"] })).status).toBe(404);
+    });
+
+    it("並び替えは、編集権限が必要(一般メンバーは 403)", async () => {
+      const view = await loginAs(api, "view");
+      expect((await view.raw("PUT", "/api/order", { parent: "", docs: [] })).status).toBe(403);
+      expect((await api.client().raw("PUT", "/api/order", { parent: "" })).status).toBe(401);
+    });
+
+    it("別のフォルダへ移したドキュメントは、並び順が未設定に戻る。名前だけの変更では保つ", async () => {
+      await owner.post("/api/docs", { id: "s/a", title: "a" });
+      await owner.post("/api/docs", { id: "s/b", title: "b" });
+      await owner.raw("PUT", "/api/order", { parent: "s", docs: ["s/b", "s/a"] });
+      await owner.patch("/api/docs/s/a", { to: "s/a2" });
+      expect(await orderOf("s/a2")).toBe(2);
+      await owner.patch("/api/docs/s/a2", { to: "t/a2" });
+      expect(await orderOf("t/a2")).toBe(0);
+      expect(await ids()).toContain("t/a2");
+    });
+
+    it("フォルダを別の階層へ自由に移せる。配下の並び順は保たれ、移したフォルダの順は未設定に戻る", async () => {
+      await owner.post("/api/docs", { id: "src/inner/a", title: "a" });
+      await owner.post("/api/docs", { id: "src/inner/b", title: "b" });
+      await owner.raw("PUT", "/api/order", { parent: "src/inner", docs: ["src/inner/b", "src/inner/a"] });
+      await owner.raw("PUT", "/api/order", { parent: "src", folders: ["src/inner"] });
+      await owner.post("/api/folders", { path: "dst" });
+      expect((await owner.patch("/api/folders", { from: "src/inner", to: "dst/inner" })).status).toBe(200);
+      expect(await ids()).toEqual(["dst/inner/a", "dst/inner/b"]);
+      expect([await orderOf("dst/inner/b"), await orderOf("dst/inner/a")]).toEqual([1, 2]);
+      expect(await folderOrder("dst/inner")).toBe(0);
+      // 最上位へも移せる
+      expect((await owner.patch("/api/folders", { from: "dst/inner", to: "inner" })).status).toBe(200);
+      expect(await ids()).toEqual(["inner/a", "inner/b"]);
+    });
+
+    it("フォルダを、同じ階層の中で名前だけ変えても、並び順は保たれる", async () => {
+      await owner.post("/api/folders", { path: "x" });
+      await owner.post("/api/folders", { path: "y" });
+      await owner.raw("PUT", "/api/order", { parent: "", folders: ["y", "x"] });
+      await owner.patch("/api/folders", { from: "x", to: "x2" });
+      expect(await folderOrder("x2")).toBe(2);
     });
   });
 

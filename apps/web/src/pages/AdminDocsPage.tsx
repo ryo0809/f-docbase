@@ -13,7 +13,7 @@ export function AdminDocsPage() {
       </p>
       <FolderManager
         folders={folders}
-        docs={docs.map(({ id, title }) => ({ id, title }))}
+        docs={docs.map(({ id, title, order }) => ({ id, title, order }))}
         canDelete={can("delete")}
       />
     </div>

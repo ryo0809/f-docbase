@@ -20,6 +20,7 @@ import {
   RenameFolderUseCase,
 } from "./application/folder/folder-usecases";
 import type { Clock, IdGenerator, SessionTokenService, TemplateCatalog } from "./application/ports/ports";
+import { ReorderSiblingsUseCase } from "./application/order/reorder-siblings";
 import { ListTemplatesUseCase } from "./application/template/list-templates";
 import {
   CreateUserUseCase,
@@ -86,6 +87,7 @@ export function createContainer(d: Dependencies) {
       upload: new UploadAssetUseCase(d.assets, d.clock, d.ids),
       get: new GetAssetUseCase(d.assets),
     },
+    order: { reorder: new ReorderSiblingsUseCase(d.folders, d.documents) },
     templates: { list: new ListTemplatesUseCase(d.templates) },
   };
 }
