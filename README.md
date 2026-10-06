@@ -120,10 +120,30 @@ make migrate           # 本番の D1 にテーブルを作る(新しい migrati
 make import-docs       # docs/ を本番の D1 に取り込む(任意)
 ```
 
-- D1 は、初回の `deploy` で自動作成される(`wrangler.jsonc` に `database_id` は書かない)。
+- D1 は、初回の `deploy` で自動作成される。作成後の `database_id` は `wrangler.jsonc` に書いてある(秘密ではない)。
 - 公開 URL は `https://f-docbase.<アカウントのサブドメイン>.workers.dev`。
 - 無料プランの上限: Workers は 1日10万リクエスト・1リクエスト CPU 10ms、D1 は 1日 読み取り500万行・書き込み10万行・容量5GB。
 - 画像は D1 に base64 で保存する(1枚 1MB まで)。
+
+### 自動デプロイ(GitHub Actions)
+
+`main` にマージ(push)されると、[.github/workflows/deploy.yml](.github/workflows/deploy.yml) が次を順に実行する。どれかが失敗したら、デプロイしない。
+
+1. 型チェック、テスト
+2. 画面のビルド
+3. D1 のマイグレーション(未適用のものだけ)
+4. Worker と静的ファイルのデプロイ
+
+Actions タブの「Deploy」から、手動でも実行できる。
+
+初回だけ、次の設定が要る。
+
+1. Cloudflare のダッシュボード「My Profile > API Tokens > Create Token」で、トークンを作る。権限は **Account > Workers Scripts > Edit**、**Account > D1 > Edit**、**Account > Account Settings > Read**。アカウントはこのアカウントだけに絞る。
+2. GitHub のリポジトリの「Settings > Secrets and variables > Actions > New repository secret」に、次の2つを登録する。
+   - `CLOUDFLARE_API_TOKEN`: 作ったトークン
+   - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare のアカウント ID(ダッシュボードの URL `dash.cloudflare.com/<ここ>/` の部分)
+
+トークンは Cloudflare の権限そのものなので、リポジトリにも会話にも書かないこと。
 
 ## 設計上の注意
 

@@ -1,0 +1,51 @@
+name: Deploy
+
+# main にマージ(push)されたら、テストして、Cloudflare へデプロイする。
+# 手動でも実行できる(Actions タブの「Run workflow」)。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# デプロイが重ならないよう、順番に実行する(途中のデプロイは止めない)
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # リポジトリの Settings > Secrets and variables > Actions に登録する(README を参照)
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: テスト
+        run: npm test
+
+      - name: 画面をビルド
+        run: npm run build
+
+      # 新しい migration があれば適用する(適用済みのものは飛ばされる)。コードより先に適用する
+      - name: D1 のマイグレーション
+        working-directory: apps/api
+        run: npx wrangler d1 migrations apply f-docbase --remote
+
+      - name: デプロイ
+        run: npm run deploy -w @f-docbase/api
