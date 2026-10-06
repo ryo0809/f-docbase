@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "f-docbase",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  // 画面(静的ファイル)は ASSETS で配信し、/api/* だけを Worker で処理する。
+  // 静的ファイルの配信には CPU 時間がかからない。
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // database_id は書かない。初回の deploy で D1 が自動作成される。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "f-docbase",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

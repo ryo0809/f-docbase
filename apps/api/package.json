@@ -1,0 +1,23 @@
+{
+  "name": "@f-docbase/api",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen:templates": "node scripts/gen-templates.mjs",
+    "dev": "npm run gen:templates && wrangler dev --port 8787",
+    "deploy": "npm run gen:templates && wrangler deploy",
+    "test": "npm run gen:templates && vitest run",
+    "typecheck": "npm run gen:templates && tsc -p ."
+  },
+  "dependencies": {
+    "@f-docbase/shared": "*",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261006.1",
+    "gray-matter": "^4.0.3",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.147.0"
+  }
+}

@@ -2,8 +2,6 @@
 node_modules/
 
 # ビルド成果物・キャッシュ
-.next/
-next-env.d.ts
 *.tsbuildinfo
 
 # 環境変数(トークンなどの秘密情報)
@@ -17,3 +15,12 @@ data/
 
 # Playwright MCP の出力(スナップショット・ログ)
 .playwright-mcp/
+
+# Cloudflare(wrangler のローカル状態・ローカル用のシークレット)
+.wrangler/
+.dev.vars*
+
+# 生成物(templates/*.md から作る)
+apps/api/src/infrastructure/templates/templates.generated.ts
+# 静的ファイルのビルド成果物
+apps/web/dist/
